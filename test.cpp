@@ -53,8 +53,8 @@ int main() {
   }
 
   winsize sz{
-      .ws_row = 120,
-      .ws_col = 60,
+      .ws_row = 60,
+      .ws_col = 120,
   };
 
   int pri;
