@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -46,7 +47,7 @@ int main() {
   char *env[1];
   env[0] = 0;
 
-  out = open("test.out", O_WRONLY | O_CREAT | O_TRUNC);
+  out = open("test.out", O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (!out) {
     perror("nope");
     return 1;
@@ -58,26 +59,31 @@ int main() {
   };
 
   int pri;
-  switch (forkpty(&pri, nullptr, nullptr, &sz)) {
-  case -1:
+  int sec;
+  if (-1 == openpty(&pri, &sec, 0, 0, &sz)) {
+    perror("openpty");
     return 1;
-  case 0:
-    execve("/usr/local/bin/vim", args, env);
-    _exit(1);
-    break;
-  default:
-    wait_idle(pri);
-    uga(pri, ":echo &columns\n");
-    uga(pri, ":echo &lines\n");
-    uga(pri, ":echo &ttytype\n");
-    uga(pri, ":echo &term\n");
-    uga(pri, ":echo has_key(environ(), 'HOME')\n");
-    uga(pri, ":set! all\n");
-    uga(pri, "G");
-    uga(pri, "\n");
-    uga(pri, ":qa!\n");
-    close(pri); // surprisingly important - otherwise child don't exit
-    wait(0);
-    break;
   }
+
+  posix_spawn_file_actions_t sfa{};
+  posix_spawn_file_actions_init(&sfa);
+  posix_spawn_file_actions_adddup2(&sfa, sec, STDIN_FILENO);
+  posix_spawn_file_actions_adddup2(&sfa, sec, STDOUT_FILENO);
+  posix_spawn_file_actions_adddup2(&sfa, sec, STDERR_FILENO);
+  posix_spawnp(0, "vim", &sfa, 0, args, env);
+
+  wait_idle(pri);
+  uga(pri, ":echo &columns\n");
+  uga(pri, ":echo &lines\n");
+  uga(pri, ":echo &ttytype\n");
+  uga(pri, ":echo &term\n");
+  uga(pri, ":echo has_key(environ(), 'HOME')\n");
+  uga(pri, ":set! all\n");
+  uga(pri, "G");
+  uga(pri, "\n");
+  uga(pri, ":qa!\n");
+
+  close(pri); // surprisingly important - otherwise child don't exit
+  close(sec);
+  wait(0);
 }
