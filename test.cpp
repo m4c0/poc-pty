@@ -5,8 +5,36 @@
 #include <unistd.h>
 #include <util.h>
 
+int out;
+
+void wait_idle(int fd) {
+  while (true) {
+    fd_set set;
+    FD_ZERO(&set);
+    FD_SET(fd, &set);
+
+    timeval timeout{
+        .tv_sec = 0,
+        .tv_usec = 500000,
+    };
+
+    switch (select(fd + 1, &set, NULL, NULL, &timeout)) {
+    case -1:
+      perror("select");
+      return;
+    case 0:
+      return;
+    default: {
+      char buf[1024];
+      int rd = read(fd, buf, 1024);
+      write(out, buf, rd);
+      break;
+    }
+    }
+  }
+}
 void uga(int fd, const char *msg) {
-  puts(msg);
+  wait_idle(fd);
   write(fd, msg, strlen(msg));
 }
 
@@ -18,7 +46,7 @@ int main() {
   char *env[1];
   env[0] = 0;
 
-  int out = open("test.out", O_WRONLY | O_CREAT | O_TRUNC);
+  out = open("test.out", O_WRONLY | O_CREAT | O_TRUNC);
   if (!out) {
     perror("nope");
     return 1;
@@ -34,7 +62,6 @@ int main() {
   case -1:
     return 1;
   case 0:
-    dup2(out, STDOUT_FILENO);
     execve("/usr/local/bin/vim", args, env);
     break;
   default:
