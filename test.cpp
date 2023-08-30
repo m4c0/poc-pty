@@ -63,26 +63,20 @@ int main() {
     return 1;
   case 0:
     execve("/usr/local/bin/vim", args, env);
+    _exit(1);
     break;
   default:
+    wait_idle(pri);
     uga(pri, ":echo &columns\n");
     uga(pri, ":echo &lines\n");
     uga(pri, ":echo &ttytype\n");
     uga(pri, ":echo &term\n");
     uga(pri, ":echo has_key(environ(), 'HOME')\n");
     uga(pri, ":set! all\n");
-    sleep(5);
     uga(pri, "G");
-    sleep(1);
     uga(pri, "\n");
-    sleep(1);
-    uga(pri, ":q\n");
-    sleep(1);
-    uga(pri, ":q\n");
-    sleep(1);
-    uga(pri, ":q\n");
-    sleep(1);
-    uga(pri, ":q\n");
+    uga(pri, ":qa!\n");
+    close(pri); // surprisingly important - otherwise child don't exit
     wait(0);
     break;
   }
